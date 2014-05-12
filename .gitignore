@@ -1,0 +1,10 @@
+data/*
+.DS_Store
+*~
+[#].[#]
+.[#]*
+*[#]
+*.pyc
+*.pdf
+*.zip
+*.xlsx
