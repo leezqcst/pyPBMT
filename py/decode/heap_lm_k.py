@@ -1,4 +1,8 @@
 import heapq
+from utils.utils import enum
+
+class FT: # father_tuple in state.fathers
+    tags = enum('F','S','E_PHRASE','PARTIAL_SCORE','FATHER_KEY')
 
 class State:
     def __init__(self,cover,j,last_e,s,h, partial_score):

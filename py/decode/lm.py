@@ -99,8 +99,9 @@ def lm_order_list(lm_model, items, lm_weight, last_e, is_end,limit = -1):
         if is_end:
             lms += lm_end(lm_model, e_phrase[-1])
         score += lm_weight * lms
-        partial_score[-1] += lms
-        temp.append((score,e_phrase,partial_score))
+        new_partial_score = list(partial_score)
+        new_partial_score[-1] += lms
+        temp.append((score,e_phrase,new_partial_score))
         
     temp = sorted(temp, key= lambda x: -x[0])
     return temp

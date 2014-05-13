@@ -8,6 +8,7 @@ from multiprocessing import Queue, Process
 import subprocess as sp
 from math import log, exp
 from datetime import datetime
+import cPickle
 from . import phraseTable
 from . import multip
 from . import monotone
@@ -15,6 +16,8 @@ from . import heap_lm
 from . import heap_lm_k
 from .lm import lm_order_best, lm_order_list, lmize
 from . import lm
+from . import carmel_related as _mcr
+from utils.utils import array_plus, array_minus
 
 def stderr(s):
     sys.stderr.write(s + '\n')
@@ -190,15 +193,12 @@ def decode(f_sentence, phrase_table, seen_words, lm_model,
 
     return (e_phrases, e_sentence, score)
 
-def array_plus(a,b):
-    r = []
-    for i in xrange(len(a)):
-        r.append(a[i] + b[i])
-    return r
-    
+
+            
+
 
 def decode_k(f_sentence, phrase_table, seen_words, lm_model,
-           lm_weight, d_weight, d_limit, beam_size, num_feature, debug=False, k_best = 1):
+           lm_weight, d_weight, d_limit, beam_size, num_feature, tempFilePath, debug=False, k_best = 1):
     start = datetime.now()
 
     # using monotone to generate future cost and transition options
@@ -269,8 +269,8 @@ def decode_k(f_sentence, phrase_table, seen_words, lm_model,
                         child_state = heap_lm_k.State(
                             new_cover, new_j, new_last_e, score, new_h, new_partial_score)
                         child_state.e_phrase = e_phrase
-                        child_state.fathers = [(child_state.f, child_state.s, child_state.e_phrase, child_state.partial_score,state),]
-
+                        delta = (child_state.f, child_state.s - state.s, child_state.e_phrase,array_minus(child_state.partial_score, state.partial_score),state)
+                        child_state.fathers = [delta,]
                         n_cover = len(new_cover)
                         bins[n_cover].add(child_state)
 
@@ -279,7 +279,9 @@ def decode_k(f_sentence, phrase_table, seen_words, lm_model,
         for b in bins:
             print b.data
 
+    cPickle.dump(bins,open('/Users/xingshi/Workspace/misc/pyPBMT/var/temp.pickle1','w'))
     # generate fst to use carmel
+    #paths = _mcr.get_k_best_paths(bins,k_best,tempFilePath)
 
 
     end = datetime.now()
@@ -301,13 +303,14 @@ def test_merge():
 def test_decode():
     weights = [0.2, 0.2, 0.2, 0.2]
     mask = [1, 1, 1, 1]
-    wp = 0
-    pp = 0
+    wp = 0.1
+    pp = 0.1
     d_weight = 0.3
     d_limit = 6
     lm_weight = 0.5
     beam_size = 100
-    f_string = 'als abgeordneter einer tabakanbauregion möchte ich hier die vorbehalte zum ausdruck bringen , die ich zu diesem bericht über den vorschlag für eine tabakrichtlinie habe .'
+    f_string = 'ich mag diesen tisch sehr viel .'
+    #'als abgeordneter einer tabakanbauregion möchte ich hier die vorbehalte zum ausdruck bringen , die ich zu diesem bericht über den vorschlag für eine tabakrichtlinie habe .'
     #'mit anderen programmen soll china bei der erfüllung bestimmter wto-vorgaben unterstützt werden .'
     #'1848 , während des kampfes gegen die herrschaft der österreich-ungarischen monarchie in mailand , als es den mailänder patrioten gelang , den zigarettenkonsum einzuschränken , um die monarchie finanziell zu schädigen .'
     #'an der spitze der australischen delegation , der drei abgeordnete des repräsentantenhauses sowie zwei abgeordnete des senats angehören , steht bruce baird .'
@@ -325,6 +328,7 @@ def test_decode():
     print e_phrases
     print e_sentence
     print score
+
 
 def test_decode_k():
     weights = [0.2, 0.2, 0.2, 0.2]
@@ -350,7 +354,7 @@ def test_decode_k():
     lm_model = lm.getLM()
     num_feature = 8
     decode_k(
-        f_sentence, phrase_table, seen_words, lm_model, lm_weight, d_weight, d_limit, beam_size,num_feature, True, 10)
+        f_sentence, phrase_table, seen_words, lm_model, lm_weight, d_weight, d_limit, beam_size,num_feature,'', True, k_best = 10)
     
 
 
