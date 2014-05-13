@@ -13,9 +13,15 @@ def get_phrase_table(weight,mask,phrase_penalty,word_penalty,path):
         f_phrase = tuple(ll[0].split())
         e_phrase = tuple(ll[1].split())
         features = [float(x) for x in ll[2].split()]
+
         score = sum([x[0]*log(x[1]) for x in zip(weight,features)])
         score += phrase_penalty + len(e_phrase) * word_penalty
-        item = (score,e_phrase)
+
+        partial_score = [log(x) for x in features]
+        partial_score.append(1)
+        partial_score.append(len(e_phrase))
+
+        item = (score,e_phrase,partial_score)
         if not f_phrase in d:
             d[f_phrase] = []
         d[f_phrase].append(item)

@@ -87,7 +87,7 @@ def lm_order_list(lm_model, items, lm_weight, last_e, is_end,limit = -1):
     '''
     temp = []
     i  = 0
-    for score, e_phrase in items:
+    for score, e_phrase, partial_score in items:
         if limit != -1 and i > limit:
             break
         i+= 1
@@ -99,7 +99,8 @@ def lm_order_list(lm_model, items, lm_weight, last_e, is_end,limit = -1):
         if is_end:
             lms += lm_end(lm_model, e_phrase[-1])
         score += lm_weight * lms
-        temp.append((score,e_phrase))
+        partial_score[-1] += lms
+        temp.append((score,e_phrase,partial_score))
         
     temp = sorted(temp, key= lambda x: -x[0])
     return temp
@@ -110,10 +111,11 @@ def lmize(lm_model, lm_weight, phrase_table):
     for key in phrase_table:
         items = phrase_table[key]
         temp = []
-        for score, e_phrase in items:
+        for score, e_phrase, partial_score in items:
             lms = lm_score(lm_model, e_phrase, False, False)
+            partial_score.append(lms)
             score += lms * lm_weight
-            temp.append((score, e_phrase))
+            temp.append((score, e_phrase,partial_score))
         
         temp = sorted(temp, key=lambda x: -x[0])
         phrase_table[key] = temp

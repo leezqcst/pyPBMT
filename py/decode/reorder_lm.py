@@ -85,6 +85,7 @@ def get_future_cost(fcost, cover, l):
 
 def decode(f_sentence, phrase_table, seen_words, lm_model,
            lm_weight, d_weight, d_limit, beam_size, debug=False):
+
     start = datetime.now()
 
     # using monotone to generate future cost and transition options
@@ -189,10 +190,15 @@ def decode(f_sentence, phrase_table, seen_words, lm_model,
 
     return (e_phrases, e_sentence, score)
 
-
+def array_plus(a,b):
+    r = []
+    for i in xrange(len(a)):
+        r.append(a[i] + b[i])
+    return r
+    
 
 def decode_k(f_sentence, phrase_table, seen_words, lm_model,
-           lm_weight, d_weight, d_limit, beam_size, debug=False, k_best = 1):
+           lm_weight, d_weight, d_limit, beam_size, num_feature, debug=False, k_best = 1):
     start = datetime.now()
 
     # using monotone to generate future cost and transition options
@@ -214,7 +220,7 @@ def decode_k(f_sentence, phrase_table, seen_words, lm_model,
         b = heap_lm_k.Heap(beam_size,k_best)
         bins.append(b)
 
-    empty = heap_lm_k.State((), 0, '<s>', 0, 0)
+    empty = heap_lm_k.State((), 0, '<s>', 0, 0,[0.0]*num_feature)
     bins[0].add(empty)
 
     for i in xrange(len(f_sentence)):
@@ -244,26 +250,30 @@ def decode_k(f_sentence, phrase_table, seen_words, lm_model,
                         lm_model, items, lm_weight, last_e, is_end,limit = 10)
 
                     # add into the bins
-                    if debug:
-                        pass
-                        stderr('{}'.format(len(items)))
-                    
+                                        
                     for item in items:
                         t_score = item[0]  # lm score has already incorporated
                         d_score = - abs(d) * d_weight  # note!
                         score = d_score + t_score + state.s
+
+                        partial_score = list(item[2])
+                        partial_score.append( - abs(d) )
+                        new_partial_score = array_plus(partial_score, state.partial_score)
 
                         e_phrase = item[1]
                         new_last_e = e_phrase[-1]
                         new_j = option[1]
                         new_h = get_future_cost(fcost, new_cover, len(f_sentence))
 
+
                         child_state = heap_lm_k.State(
-                            new_cover, new_j, new_last_e, score, new_h)
-                        child_state.fathers = [(child_state.f,state),]
+                            new_cover, new_j, new_last_e, score, new_h, new_partial_score)
                         child_state.e_phrase = e_phrase
+                        child_state.fathers = [(child_state.f, child_state.s, child_state.e_phrase, child_state.partial_score,state),]
+
                         n_cover = len(new_cover)
                         bins[n_cover].add(child_state)
+
 
     if debug:
         for b in bins:
@@ -319,28 +329,32 @@ def test_decode():
 def test_decode_k():
     weights = [0.2, 0.2, 0.2, 0.2]
     mask = [1, 1, 1, 1]
-    wp = 0
-    pp = 0
+    wp = 0.1
+    pp = 0.1
     d_weight = 0.3
     d_limit = 6
     lm_weight = 0.5
     beam_size = 100
-    f_string = 'als abgeordneter einer tabakanbauregion möchte ich hier die vorbehalte zum ausdruck bringen , die ich zu diesem bericht über den vorschlag für eine tabakrichtlinie habe .'
+    f_string = 'ich mag diesen tisch sehr viel .'
+    #'als abgeordneter einer tabakanbauregion möchte ich hier die vorbehalte zum ausdruck bringen , die ich zu diesem bericht über den vorschlag für eine tabakrichtlinie habe .'
     #'mit anderen programmen soll china bei der erfüllung bestimmter wto-vorgaben unterstützt werden .'
     #'1848 , während des kampfes gegen die herrschaft der österreich-ungarischen monarchie in mailand , als es den mailänder patrioten gelang , den zigarettenkonsum einzuschränken , um die monarchie finanziell zu schädigen .'
     #'an der spitze der australischen delegation , der drei abgeordnete des repräsentantenhauses sowie zwei abgeordnete des senats angehören , steht bruce baird .'
 
-    #'ich mag diesen tisch sehr viel .'
+    #
 
     f_sentence = f_string.split()
     phrase_table, seen_words = phraseTable.get_phrase_table(
         weights, mask, pp, wp, '../data/phrase-table')
 
     lm_model = lm.getLM()
-
+    num_feature = 8
     decode_k(
-        f_sentence, phrase_table, seen_words, lm_model, lm_weight, d_weight, d_limit, beam_size, False,100)
+        f_sentence, phrase_table, seen_words, lm_model, lm_weight, d_weight, d_limit, beam_size,num_feature, True, 10)
     
+
+
+
 
 
 if __name__ == '__main__':
