@@ -97,3 +97,4 @@ if __name__ == '__main__':
     ps,ts = backtrack_k(bins,paths)
     print ts
     print ps
+    cPickle.dump((ps,ts),open('/Users/xingshi/Workspace/misc/pyPBMT/var/pts.pickle','w'))

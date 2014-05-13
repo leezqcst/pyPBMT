@@ -199,6 +199,14 @@ def decode(f_sentence, phrase_table, seen_words, lm_model,
 
 def decode_k(f_sentence, phrase_table, seen_words, lm_model,
            lm_weight, d_weight, d_limit, beam_size, num_feature, tempFilePath, debug=False, k_best = 1):
+    '''generate the k-best translations
+    
+    return partial_scores, translated_sentences
+    partial_scores: [[feature_value]*number_features] * k_best
+    translated_sentences : [[e_phrase] * num_phrases ] * k_best
+    '''
+
+
     start = datetime.now()
 
     # using monotone to generate future cost and transition options
@@ -279,18 +287,13 @@ def decode_k(f_sentence, phrase_table, seen_words, lm_model,
         for b in bins:
             print b.data
 
-    cPickle.dump(bins,open('/Users/xingshi/Workspace/misc/pyPBMT/var/temp.pickle1','w'))
-    # generate fst to use carmel
-    #paths = _mcr.get_k_best_paths(bins,k_best,tempFilePath)
-
+    paths = _mcr.get_k_best_paths(bins,k_best,tempFilePath)
+    partial_scores, translated_sentence = _mcr.backtrack_k(bins,paths)
 
     end = datetime.now()
     print end-start
-
     
-
-
-
+    return partial_scores, translated_sentence
 
 ######## Test Code ############
 
@@ -344,7 +347,6 @@ def test_decode_k():
     #'mit anderen programmen soll china bei der erfüllung bestimmter wto-vorgaben unterstützt werden .'
     #'1848 , während des kampfes gegen die herrschaft der österreich-ungarischen monarchie in mailand , als es den mailänder patrioten gelang , den zigarettenkonsum einzuschränken , um die monarchie finanziell zu schädigen .'
     #'an der spitze der australischen delegation , der drei abgeordnete des repräsentantenhauses sowie zwei abgeordnete des senats angehören , steht bruce baird .'
-
     #
 
     f_sentence = f_string.split()
@@ -356,10 +358,6 @@ def test_decode_k():
     decode_k(
         f_sentence, phrase_table, seen_words, lm_model, lm_weight, d_weight, d_limit, beam_size,num_feature,'', True, k_best = 10)
     
-
-
-
-
 
 if __name__ == '__main__':
 
