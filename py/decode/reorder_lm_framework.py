@@ -160,8 +160,8 @@ def decode_batch(feature_weights,input_path, temp_folder=None, lm_path = None, p
             tss+=ts
         
 
-        # pfn = os.path.join(temp_folder, 'pts.pickle')
-        # cPickle.dump((pss,tss),open(pfn,'w'))
+        #pfn = os.path.join(temp_folder, 'pts.pickle')
+        #cPickle.dump((pss,tss),open(pfn,'w'))
 
         return pss, tss
 

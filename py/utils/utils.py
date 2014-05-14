@@ -1,3 +1,4 @@
+import numpy 
 
 def enum(*sequential, **named):
     """
@@ -52,13 +53,13 @@ def write_config(config,fn):
     for key in config:
         value = config[key]
         type_str = ''
-        if type(value) = type(' '):
+        if type(value) == type(' '):
             type_str = 's'
-        elif type(value) = type(1):
+        elif type(value) == type(1):
             type_str = 'i'
-        elif type(value) = type(1.0):
+        elif type(value) == float or type(value) == numpy.float64:
             type_str = 'f'
-        elif type(value) = type(True):
+        elif type(value) == type(True):
             type_str = 'b'
         value = str(value)
         temp.append([type_str,key,value])

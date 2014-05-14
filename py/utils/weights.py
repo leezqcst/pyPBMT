@@ -68,3 +68,12 @@ def weight_to_config(weights,config):
     return config
 
         
+def normalize_weights(weights):
+    temp = []
+    biggest = .0
+    for w in weights:
+        if biggest < abs(w):
+            biggest = abs(w)
+    for w in weights:
+        temp.append(w/biggest)
+    return temp

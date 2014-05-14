@@ -81,7 +81,7 @@ def backtrack_k(bins,paths):
             e_pharse = father_tuple[tags.E_PHRASE]
             ps = father_tuple[tags.PARTIAL_SCORE]
             partial_score = array_plus(partial_score,ps)
-            translated_sentence += list(e_pharse)
+            translated_sentence.append(e_pharse)
             father_key = state.getKey()
         partial_scores.append(partial_score)
         translated_sentences.append(translated_sentence)

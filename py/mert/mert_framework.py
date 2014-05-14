@@ -1,8 +1,8 @@
 from utils.utils import get_config, write_config
-from utils.weights import Weight, get_random_weights,weight_to_config
+from utils.weights import Weight, get_random_weights,weight_to_config,normalize_weights
 from .bleu import Bleu
 from .line_search import search_line 
-from decode.reorder_lm_framework
+from decode.reorder_lm_framework import decode_batch_config_weight
 import logging
 import cPickle
 import os,sys
@@ -19,53 +19,73 @@ def main():
 
 
 
-def mert(config,config_out):
+def mert(config,config_out,debug = True):
     weight = Weight()
     weight.parse(config)
-
-    refs = get_reference(config)
-
     current_weights = weight.get_weights()
+
     current_pss = []
     current_tss = []
     current_bleus = []
     sentence_dict = []
 
-    blue_thres = 0.1
+    bleu_thres = 0.01
 
     n_new_add = 0.0
     new_bleu = .0
     old_bleu = .0
+    best_bleu = .0
     best_weights = None
     round_id = 0
+    refs = get_reference_config(config)
+
     # this loop stop when: 1 no new sentence ; 2 bleu doesn't imporve
     while True:
         old_bleu = best_bleu
         # generate k-best 
         pss,tss = decode_batch_config_weight(config,current_weights)
+
+        #pss, tss = cPickle.load(open('/Users/xingshi/Workspace/misc/pyPBMT/var/v1/pts.pickle'))
         # merge k-best
+        #cPickle.dump((pss,tss),open('/Users/xingshi/Workspace/misc/pyPBMT/var/v1/pts.{}.pickle'.format(round_id),'w'))
+
         n_new_add = merge_pss_tss(current_pss, current_tss, sentence_dict, current_bleus, refs, pss, tss)
+        
+        logging.info('New_add: {}'.format(n_new_add))
         if n_new_add == 0:
             break
         # optimize 20 times: one with previous weight, the other with random weights
-        new_weights, new_bleu = optimize(current_pss, current_tss, current_bleus,  current_weights)
+        new_weights, new_bleu = optimize(current_pss, current_bleus,  current_weights)
+
         if best_bleu < new_bleu:
-            best_bleu == new_bleu
+            best_bleu = new_bleu
             best_weights = new_weights
+
+        if debug:
+            logging.info('{} {}'.format(best_bleu, best_weights))
+
         for i in xrange(19):
             rand_weights = get_random_weights(current_weights)
-            new_weights, new_bleu = optimize(current_pss, current_tss, rand_weights)
+            new_weights, new_bleu = optimize(current_pss, current_bleus,  rand_weights)
+            
+            if debug:
+                #logging.info('Rand Weights: {}'.format(rand_weights))
+                logging.info('{} {}'.format(new_bleu, new_weights))
+
             if best_bleu < new_bleu:
-                best_bleu == new_bleu
+                best_bleu = new_bleu
                 best_weights = new_weights
+                
 
         round_id += 1
 
-        logging.info('Round: {} Bleu: {}'.format(round_id,best_bleu))
+        logging.info('Round: {}, Bleu: {}'.format(round_id,best_bleu))
         logging.info('Weights: {}'.format(best_weights))
 
-        if best_bleu - old_bleu < bleu_thres:
-            break
+        current_weights = best_weights
+
+        # if best_bleu - old_bleu < bleu_thres:
+        #     break
 
     # write the new weights to config
     config = weight_to_config(best_weights,config)
@@ -106,13 +126,16 @@ def merge_pss_tss(total_pss,total_tss,sentence_dict,total_bleus, refs, new_pss,n
                 t_pss.append(ps)
                 t_tss.append(ts)
                 b = Bleu()
-                b.parse_sentence(ts,ref)
+                ts_flat = []
+                for e_phrase in ts:
+                    ts_flat += list(e_phrase)
+                b.parse_sentence(ts_flat,ref)
                 t_bleus.append(b)
     return n_new_add
 
 
 
-def optimize(pps,tss, bleus, start_feature_weights):
+def optimize(pps, bleus, start_feature_weights):
     '''optimize from start_feature_weights
     pps: partial_scores num_sentence * k_best 
     tss: translated_sentences num_sentence * k_best 
@@ -126,14 +149,18 @@ def optimize(pps,tss, bleus, start_feature_weights):
     new_bleu = 0
     threshold = 0.1
     while True:
+        old_bleu = new_bleu
         for i in xrange(num_feature):
             # optimize ith weights
-            current_weights, new_bleu = search_line(pps,tss, bleus, current_weights,i)
+            current_weights, new_bleu = search_line(pps, bleus, current_weights,i)
         if abs(new_bleu - old_bleu) < threshold:
             break
+    
+    current_weights = normalize_weights(current_weights)
+
     return current_weights,new_bleu
 
-def get_reference(config):
+def get_reference_config(config):
     fn = config['reference']
     f = open(fn)
     refs = []
@@ -142,9 +169,29 @@ def get_reference(config):
         refs.append(ll)
     return refs
 
+def get_reference_path(fn):
+    f = open(fn)
+    refs = []
+    for line in f:
+        ll = line.strip().split()
+        refs.append(ll)
+    return refs
+    
 
+# ==== Test ====
+
+def test():
+    pss, tss = cPickle.load(open('/Users/xingshi/Workspace/misc/pyPBMT/var/v1/pts.pickle'))
+    d = []
+    weights = [0.2,0.2,0.2,0.2,0.1,0.1,0.5,0.3]
+    t_pss, t_tss, t_bleus = [],[],[]
+    refs = get_reference_path('/Users/xingshi/Workspace/misc/pyPBMT/data/dev.clean.en.10')
+    new_add = merge_pss_tss(t_pss,t_tss,d,t_bleus,refs,pss,tss)
+    cPickle.dump((t_pss,t_tss,t_bleus),open('/Users/xingshi/Workspace/misc/pyPBMT/var/v1/ptbs.pickle','w'))
+    print new_add
+                 
 
 
 if __name__ == '__main__':
     main()
-
+    #test()
