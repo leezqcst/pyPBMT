@@ -1,8 +1,102 @@
 import cPickle
 import numpy as np
+from .bleu import Bleu
 
-def combine_break_points(break_points_list):
+def search_line(pss,tss,bleus, weights, i):
+    '''
+    return new_weights(change only ith weight) and new best bleu
+    '''
+    break_points = [] # num_sentence * num_break_points
+    belongs = [] # num_sentence * (num_break_points + 1)
+    n = len(pss)
+    # calculate break-points
+    for i in xrange(n):
+        ps = pss[i]
+        break_point, belong = search_break_points(ps, weights, i)
+        break_points.append(break_point)
+        belongs.append(belong)
+
+    new_weight, best_bleu_score = combine_break_points(break_points,belongs,bleus)
     
+    new_weights = list(weights)
+    new_weights[i] = new_weight
+
+    return new_weights, best_bleu_score
+
+
+def combine_break_points(break_points, belongs, bleus):
+    '''Combine those break_points
+
+    return new ith weight, new best bleu
+    '''
+    all_break_points = []
+    for sen_id in xrange(len(break_points)):
+        bps = break_points[sen_id]
+        bps_zip = [(x,sen_id,i) for i,x in enumerate(bps)] # [(break_point, sentence_id, break_point_id)]
+        all_break_points.append += bps_zip
+
+    all_break_points = sorted(all_break_points)
+    
+    # combine all the break points
+    bps = [] # store all the merges break-points
+    bls = [] # store the corpus bleu score for each interval
+    i = 0 
+    thres = 0.001
+    while i< len(all_break_points):
+        v,sid,sbpid = all_break_points[i]
+        bp = BP(v,sid,sbpid)
+        i+=1
+        while i< len(all_break_points):
+            new_v,sid,sbpid = all_break_points[i]
+            if abs(new_v-v) < thres:
+                bp.add(sid,sbpid)
+                i+=1
+            else:
+                break
+        bps.append(bp)
+
+    # calculate bleu along bps
+    
+    b = Bleu()
+    current_belong = [] # 
+    # calculate the first bleu score
+    for i in len(bleus):
+        bleu_array = bleus[i]
+        belong = belongs[i]
+        top_id = belong[0]
+        current_belong.append(top_id)
+        bleu_object = bleu_array[top_id]
+        b.add_bleu(bleu_object)
+
+    bleu_0 = b.get_bleu()
+    bls.append(bleu_0)
+    
+    for i in xrange(len(bps)):
+        change_list = bps[i].sub_bps
+        for sid,sbpid in change_list:
+            to_remove_sbpid = current_belong[sid]
+            b.minus_bleu(bleus[sid][to_remove_sbpid])
+            b.add_bleu(bleus[sid][sbpid])
+        bleu_i = b.get_bleu()
+        bls.append(bleu_i)
+
+    # search for the best interval
+    new_weight = None
+    best_bleu_score = 0.0
+    best_bleu_id = 0
+    for i, bl in enumerate(bls):
+        if best_bleu_score < bl:
+            best_bleu_score = bl
+            best_bleu_id = i
+    if best_bleu_id == 0 :
+        new_weight = bps[0].bp
+    elif best_bleu_id == len(bls)-1:
+        new_weight = bps[best_bleu_id-1].bp
+    else:
+        new_weight = (bps[best_bleu_id-1].bp + bps[best_bleu_id].bp) *1.0 / 2
+    return new_weight, best_bleu_score
+
+
 
 
 def search_break_points(partial_scores,feature_values,feature_id):
@@ -48,6 +142,15 @@ def search_break_points(partial_scores,feature_values,feature_id):
 
     return break_points, belongs
     
+
+class BP:
+    def __init__(self,bp,sid,sbpid):
+        self.bp = bp
+        self.sub_bps = [(sid,sbpid),] # [(sentence_id, sub_break_point_id)]
+    
+    def add(self, sid,sbpid):
+        self.sub_bps.append((sid,sbpid))
+
 
 
 if __name__ == '__main__':
