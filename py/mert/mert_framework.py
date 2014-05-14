@@ -1,0 +1,127 @@
+from utils.utils import get_config, write_config
+from utils.weights import Weight, get_random_weights,weight_to_config
+from .line_search import search_line 
+from decode.reorder_lm_framework
+import logging
+import cPickle
+import os,sys
+from datetime import datetime
+
+
+def main():
+    # python mert_framework mert.config
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    config_fn = sys.argv[1]
+    config = get_config(config_fn)
+    mert(config,config_fn+'.mert')
+
+
+
+
+def mert(config,config_out):
+    weight = Weight()
+    weight.parse(config)
+
+    current_weights = weight.get_weights()
+    current_pss = []
+    current_tss = []
+    sentence_dict = []
+
+    blue_thres = 0.1
+
+    n_new_add = 0.0
+    new_bleu = .0
+    old_bleu = .0
+    best_weights = None
+    round_id = 0
+    # this loop stop when: 1 no new sentence ; 2 bleu doesn't imporve
+    while True:
+        old_bleu = best_bleu
+        # generate k-best 
+        pss,tss = decode_batch_config_weight(config,current_weights)
+        # merge k-best
+        n_new_add = merge_pss_tss(current_pss, current_tss, sentence_dict, pss, tss)
+        if n_new_add == 0:
+            break
+        # optimize 20 times: one with previous weight, the other with random weights
+        new_weights, new_bleu = optimize(current_pss, current_tss, current_weights)
+        if best_bleu < new_bleu:
+            best_bleu == new_bleu
+            best_weights = new_weights
+        for i in xrange(19):
+            rand_weights = get_random_weights(current_weights)
+            new_weights, new_bleu = optimize(current_pss, current_tss, rand_weights)
+            if best_bleu < new_bleu:
+                best_bleu == new_bleu
+                best_weights = new_weights
+
+        round_id += 1
+
+        logging.info('Round: {} Bleu: {}'.format(round_id,best_bleu))
+        logging.info('Weights: {}'.format(best_weights))
+
+        if best_bleu - old_bleu < bleu_thres:
+            break
+
+    # write the new weights to config
+    config = weight_to_config(best_weights,config)
+    write_config(config,config_out)
+
+
+def merge_pss_tss(total_pss,total_tss,sentence_dict,new_pss,new_tss):
+    '''change total_pss, total_tss, sentence_dict inplace.
+    
+    sentence_dict: a dict array, one for each source sentence
+
+    return the number of newly added sentences
+    '''
+    n = len(new_pss)
+    n_new_add = 0
+
+    if len(sentence_dict) == 0:
+        for i in xrange(n):
+            sentence_dict.append({})
+    for i in xrange(n):
+        pss = new_pss[i]
+        tss = new_tss[i]
+        t_pss = total_pss
+        t_tss = total_tss
+        d = sentence_dict[i]
+        for j in xrange(len(tss)):
+            ts = tss[j]
+            ps = pss[j]
+            key = tuple(ts)
+            if not key in d:
+                d[key] = 1
+                n_new_add += 1
+                t_pss.append(ps)
+                t_tss.append(ts)
+
+    return n_new_add
+
+
+
+def optimize(pps,tss,start_feature_weights):
+    '''optimize from start_feature_weights
+    pps: partial_scores num_sentence * k_best 
+    tss: translated_sentences num_sentence * k_best 
+    '''
+    num_feature = len(start_feature_weights)
+    
+    current_weights = list(start_feature_weights)
+    
+    old_bleu = 0
+    new_bleu = 0
+    threshold = 0.1
+    while True:
+        for i in xrange(num_feature):
+            # optimize ith weights
+            current_weights, new_bleu = search_line(pps,tss,current_weights,i)
+        if abs(new_bleu - old_bleu) < threshold:
+            break
+    return current_weights,new_bleu
+
+
+if __name__ == '__main__':
+    main()
+

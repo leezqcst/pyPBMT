@@ -18,7 +18,10 @@ def main():
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
     config_fn = sys.argv[1]
     config = get_config(config_fn)
+    decode_batch_config(config)
 
+    
+def decode_batch_config(config):
     # weights
     feature_weights = []
     for name in ['w0','w1','w2','w3','wpp','wwp','wlm','wd']:
@@ -37,8 +40,25 @@ def main():
     lm_path= config['lm_path']
     phrase_table_path = config['phrase_table']
 
-    decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit)
-    
+    return decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit)
+
+
+def decode_batch_config_weight(config,feature_weights):
+    # decode.config
+    nthread = config['nthread']
+    beam_size = config['beam_size']
+    top_k = config['top_k']
+    d_limit = config['d_limit']
+
+    # file paths
+    temp_folder = config['temp_folder']
+    inputFn = config['input']
+    referenceFn = config['reference']
+    lm_path= config['lm_path']
+    phrase_table_path = config['phrase_table']
+
+    return decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit)
+
 
 def decode_batch(feature_weights,input_path, temp_folder=None, lm_path = None, phrase_table_path = None,n_core = 1, beam_size = 100, top_k = 1, d_limit = 6):
     
@@ -136,11 +156,12 @@ def decode_batch(feature_weights,input_path, temp_folder=None, lm_path = None, p
 
         for i in xrange(n_core):
             ps,ts = d[i]
-            pss.append(ps)
-            tss.append(ts)
+            pss+=ps
+            tss+=ts
         
-        pfn = os.path.join(temp_folder, 'pts.pickle')
-        cPickle.dump((pss,tss),open(pfn,'w'))
+
+        # pfn = os.path.join(temp_folder, 'pts.pickle')
+        # cPickle.dump((pss,tss),open(pfn,'w'))
 
         return pss, tss
 

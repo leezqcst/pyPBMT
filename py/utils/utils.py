@@ -45,3 +45,25 @@ def get_config(fn):
             elif value == 'False':
                 config[key]=False
     return config
+
+def write_config(config,fn):
+    f = open(fn,'w')
+    temp  = []
+    for key in config:
+        value = config[key]
+        type_str = ''
+        if type(value) = type(' '):
+            type_str = 's'
+        elif type(value) = type(1):
+            type_str = 'i'
+        elif type(value) = type(1.0):
+            type_str = 'f'
+        elif type(value) = type(True):
+            type_str = 'b'
+        value = str(value)
+        temp.append([type_str,key,value])
+
+    temp = ['='.join(x) for x in temp]
+    temp_str = '\n'.join(temp)
+    f.write(temp_str)
+    f.close()
