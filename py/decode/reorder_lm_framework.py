@@ -1,55 +1,64 @@
 
-from .reorder_lm import
 from . import phraseTable
 from . import multip
 from . import monotone
-from .reorder_lm import decode, stderr
-
-def read_moses(fn):
-    f = open(fn)
-    wp = 0.0
-    pp = 0.0
-    weights = []
-    path = ''
-    for line in f:
-        ll = line.split()
-        if line.startswith('PhraseDictionaryMemory'):
-            path = ll[4].split('=')[1]
-        if line.startswith('WordPenalty0='):
-            wp = float(ll[1])
-        if line.startswith('PhrasePenalty0='):
-            pp = float(ll[1])
-        if line.startswith('TranslationModel0='):
-            weights = [float(x) for x in ll[1:]]
-    f.close()
-    return weights, wp, pp, path
+from . import lm
+from .reorder_lm import decode, decode_k, stderr
+from utils.utils import get_config
+from multiprocessing import Queue, Process
+import logging
+import cPickle
+from datetime import datetime
+import sys,os
 
 
 
 def main():
-    # reorder mosis.ini -j 4 -b 100
-    if len(sys.argv) < 2:
-        sys.exit(-1)
-    mosis_fn = sys.argv[1]
-    n_core = 1
-    beam_size = 100
-    if len(sys.argv) >= 4:
-        n_core = int(sys.argv[3])
-        beam_size = int(sys.argv[5])
-    weights, wp, pp, d_weight, lm_weight, path = monotone.read_moses(mosis_fn)
+    # reoder_lm.py decode.config
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    config_fn = sys.argv[1]
+    config = get_config(config_fn)
 
-    mask = [1, 1, 1, 1]
-    d_limit = 6
+    # weights
+    feature_weights = []
+    for name in ['w0','w1','w2','w3','wpp','wwp','wlm','wd']:
+        feature_weights.append(config[name])
 
-    stderr(repr([weights, wp, pp, d_weight, lm_weight, d_limit, beam_size]))
+    # decode.config
+    nthread = config['nthread']
+    beam_size = config['beam_size']
+    top_k = config['top_k']
+    d_limit = config['d_limit']
+
+    # file paths
+    temp_folder = config['temp_folder']
+    inputFn = config['input']
+    referenceFn = config['reference']
+    lm_path= config['lm_path']
+    phrase_table_path = config['phrase_table']
+
+    decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit)
+    
+
+def decode_batch(feature_weights,input_path, temp_folder=None, lm_path = None, phrase_table_path = None,n_core = 1, beam_size = 100, top_k = 1, d_limit = 6):
+    
+    # weights
+    num_feature = len(feature_weights)
+    weights = feature_weights[0:4]
+    pp = feature_weights[4]
+    wp = feature_weights[5]
+    lm_weight = feature_weights[6]
+    d_weight = feature_weights[7]
 
     # get phrase table
     phrase_table, seen_words = phraseTable.get_phrase_table(
-        weights, mask, pp, wp, path)
-    lm_model = lm.getLM()
+        weights, pp, wp, phrase_table_path)
+    lm_model = lm.getLM(lm_path)
 
     # decode
-    lines = sys.stdin.readlines()
+    f = open(input_path)
+    lines = f.readlines()
+    f.close()
 
     line_groups = multip.split_list(lines, n_core, 1)
 
@@ -57,50 +66,114 @@ def main():
     queue = Queue()
     for i in xrange(n_core):
         group = line_groups[i]
-        p = Process(
-            target=worker,
-            args=(
-                group,
-                phrase_table,
-                seen_words,
-                lm_model,
-                lm_weight,
-                d_weight,
-                d_limit,
-                beam_size,
-                i,
-                queue))
+        p = None
+        if top_k == 1:
+            p = Process(
+                target=worker_1,
+                args=(
+                    group,
+                    phrase_table,
+                    seen_words,
+                    lm_model,
+                    lm_weight,
+                    d_weight,
+                    d_limit,
+                    beam_size,
+                    num_feature,
+                    i,
+                    queue))
+        else:
+            p = Process(
+                target=worker_k,
+                args=(
+                    group,
+                    phrase_table,
+                    seen_words,
+                    lm_model,
+                    lm_weight,
+                    d_weight,
+                    d_limit,
+                    beam_size,
+                    num_feature,
+                    temp_folder,
+                    top_k,
+                    i,
+                    queue))
         p.start()
         processes.append(p)
 
-    d = {}
-    s = 0.0
-    ns = 0.0
-    for i in xrange(n_core):
-        key, out, score = queue.get()
-        d[key] = out
-        s += score
+    if top_k == 1:
+        d = {}
+        s = 0.0
+        ns = 0.0
+        for i in xrange(n_core):
+            key, out, score = queue.get()
+            d[key] = out
+            s += score
 
-    for p in processes:
-        p.join()
+        for p in processes:
+            p.join()
 
-    for i in xrange(n_core):
-        group = d[i]
-        if group != '':
-            print group,
+        for i in xrange(n_core):
+            group = d[i]
+            if group != '':
+                print group,
 
-    sys.stderr.write('score:' + str(s) + '\n')
+        sys.stderr.write('score:' + str(s) + '\n')
 
-    sys.stderr.flush()
+        sys.stderr.flush()
+
+    elif top_k > 1:
+        d = {}
+        pss = []
+        tss = []
+        for i in xrange(n_core):
+            key, ps, ts = queue.get()
+            d[key] = (ps,ts)
+
+        for p in processes:
+            p.join()
+
+        for i in xrange(n_core):
+            ps,ts = d[i]
+            pss.append(ps)
+            tss.append(ts)
+        
+        pfn = os.path.join(temp_folder, 'pts.pickle')
+        cPickle.dump((pss,tss),open(pfn,'w'))
+
+        return pss, tss
+
+        
+
+def worker_k(lines, phrase_table, seen_words, lm_model,
+           lm_weight, d_weight, d_limit, beam_size, num_feature, tempFolder, top_k, i, queue):
+
+    tempFilePath = os.path.join(tempFolder,'temp_{}.fsa'.format(i))
+    pss = []
+    tss = []
+    k = 0
+    for line in lines:
+        if k % 10 == 1:
+            stderr('PRO-%d %d/%d' % (i, k, len(lines)))
+        k += 1
+        ll = line.strip().split()
+        ps,ts = decode_k(
+            ll, phrase_table, seen_words, lm_model, lm_weight, d_weight, d_limit, beam_size, num_feature, tempFilePath, False, k_best = top_k)
+        pss.append(ps)
+        tss.append(ts)
+        
+    queue.put((i, pss,tss))
 
 
-def worker(lines, phrase_table, seen_words, lm_model,
-           lm_weight, d_weight, d_limit, beam_size, i, queue):
+
+def worker_1(lines, phrase_table, seen_words, lm_model,
+           lm_weight, d_weight, d_limit, beam_size, num_feature, i, queue):
     out = ''
     s = 0.0
     k = 0
     for line in lines:
-        if k % 10 == 1:
+        if k % 3 == 1:
             stderr('PRO-%d %d/%d' % (i, k, len(lines)))
         k += 1
         ll = line.strip().split()
@@ -112,7 +185,7 @@ def worker(lines, phrase_table, seen_words, lm_model,
         while not success:
             try:
                 e_phrases, e_sentence, score = decode(
-                    ll, phrase_table, seen_words, lm_model, lm_weight, d_weight, d_limit, beam_size * expand)
+                    ll, phrase_table, seen_words, lm_model, lm_weight, d_weight, d_limit, beam_size * expand, num_feature)
                 success = True
             except Exception as e:
                 stderr(repr(e))

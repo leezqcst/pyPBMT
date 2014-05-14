@@ -5,14 +5,18 @@ from utils.utils import array_plus
 
 def generate_fst_str(bins):
     fst_strs = []
+    lastDone = False
     for i in xrange(len(bins)-1,0,-1):
         bin = bins[i]
-        if i == len(bins)-1:
+        if bin.size == 0:
+            continue
+        if not lastDone:
             dst = '_END'
             for j in xrange(bin.size):
                 name = '{}_{}'.format(i,j)
                 s = '({} ({} {} {} {}))'.format(name,dst,dst,dst,1)
                 fst_strs.append(s)
+            lastDone = True
         for j in xrange(bin.size):
             state = bin.data[j]
             for ftid,father_tuple in enumerate(state.fathers):

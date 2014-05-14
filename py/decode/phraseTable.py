@@ -2,9 +2,9 @@
 from math import exp, log
 import sys
 
-def get_phrase_table(weight,mask,phrase_penalty,word_penalty,path):
+def get_phrase_table(weight,phrase_penalty,word_penalty,path):
     sys.stderr.write('loading phrase table\n')
-    weight = [x[0]*x[1] for x in zip(weight,mask)]
+    
     f = open(path)
     d = {}
     seenwords = {}
@@ -30,6 +30,7 @@ def get_phrase_table(weight,mask,phrase_penalty,word_penalty,path):
     for f_phrase in d:
         items = d[f_phrase]
         d[f_phrase] = sorted(items,key = lambda x: -x[0])
+
 
     f.close()
     sys.stderr.write('Phrase table: %d\n' % len(d))

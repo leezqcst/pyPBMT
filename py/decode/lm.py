@@ -2,8 +2,7 @@
 
 import kenlm
 
-def getLM():
-    path = '/Users/xingshi/Workspace/misc/NLPKK/599/hw3/data/europarl.en.2gram.arpa'
+def getLM(path):
     model = kenlm.LanguageModel(path)
     return model
 
@@ -114,9 +113,10 @@ def lmize(lm_model, lm_weight, phrase_table):
         temp = []
         for score, e_phrase, partial_score in items:
             lms = lm_score(lm_model, e_phrase, False, False)
-            partial_score.append(lms)
+            new_partial_score = list(partial_score)
+            new_partial_score.append(lms)
             score += lms * lm_weight
-            temp.append((score, e_phrase,partial_score))
+            temp.append((score, e_phrase,new_partial_score))
         
         temp = sorted(temp, key=lambda x: -x[0])
         phrase_table[key] = temp

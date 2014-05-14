@@ -2,7 +2,7 @@ import cPickle
 import numpy as np
 
 def combine_break_points(break_points_list):
-    pass
+    
 
 
 def search_break_points(partial_scores,feature_values,feature_id):

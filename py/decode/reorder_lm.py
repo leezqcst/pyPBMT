@@ -23,7 +23,7 @@ def stderr(s):
     sys.stderr.write(s + '\n')
 
 
-def future_cost_and_options(f_sentence, phrase_table, seen_words):
+def future_cost_and_options(f_sentence, phrase_table, seen_words, num_feature):
     fcost = {}
     f_l = len(f_sentence)
     options = None
@@ -31,7 +31,7 @@ def future_cost_and_options(f_sentence, phrase_table, seen_words):
     for start in xrange(f_l):
         f_sentence_temp = f_sentence[start:f_l]
         states, trans_key, npt = monotone.decode(
-            f_sentence_temp, phrase_table, seen_words, True)
+            f_sentence_temp, phrase_table, seen_words, True, num_feature = num_feature)
         fcost[start] = {}
         for i in xrange(1, len(states)):
             end = start + i
@@ -87,15 +87,16 @@ def get_future_cost(fcost, cover, l):
 
 
 def decode(f_sentence, phrase_table, seen_words, lm_model,
-           lm_weight, d_weight, d_limit, beam_size, debug=False):
+           lm_weight, d_weight, d_limit, beam_size, num_feature, debug=False):
 
     start = datetime.now()
 
     # using monotone to generate future cost and transition options
     fcost, options, new_phrase_table = future_cost_and_options(
-        f_sentence, phrase_table, seen_words)
+        f_sentence, phrase_table, seen_words,num_feature)
 
     new_phrase_table = lmize(lm_model, lm_weight, new_phrase_table)
+
 
     if debug:
         for key in new_phrase_table:
@@ -211,9 +212,11 @@ def decode_k(f_sentence, phrase_table, seen_words, lm_model,
 
     # using monotone to generate future cost and transition options
     fcost, options, new_phrase_table = future_cost_and_options(
-        f_sentence, phrase_table, seen_words)
+        f_sentence, phrase_table, seen_words, num_feature)
 
     new_phrase_table = lmize(lm_model, lm_weight, new_phrase_table)
+
+
 
     if debug:
         for key in new_phrase_table:
@@ -322,7 +325,7 @@ def test_decode():
 
     f_sentence = f_string.split()
     phrase_table, seen_words = phraseTable.get_phrase_table(
-        weights, mask, pp, wp, '../data/phrase-table')
+        weights, pp, wp, '../data/phrase-table')
 
     lm_model = lm.getLM()
 
@@ -351,7 +354,7 @@ def test_decode_k():
 
     f_sentence = f_string.split()
     phrase_table, seen_words = phraseTable.get_phrase_table(
-        weights, mask, pp, wp, '../data/phrase-table')
+        weights, pp, wp, '../data/phrase-table')
 
     lm_model = lm.getLM()
     num_feature = 8

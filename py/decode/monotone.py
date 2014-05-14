@@ -13,7 +13,7 @@ import subprocess as sp
 def stderr(s):
     sys.stderr.write(s+'\n')
 
-def decode(f_sentence,phrase_table,seen_words,return_trans=False):
+def decode(f_sentence,phrase_table,seen_words,return_trans=False,num_feature = 8):
 
     derivation = [] # [(f_phrase,e_phrase,score)]
     new_phrase_table = {}
@@ -22,9 +22,8 @@ def decode(f_sentence,phrase_table,seen_words,return_trans=False):
     trans = {} # key = (start_state, end_state) value = (score, e_phrase)
     inward = {} # if (0,1) in trans, inward[1] = [0]
     small = 0
-            
-    # build the fst
 
+    # build the fst
     for i in xrange(len(f_sentence)):
         for j in xrange(i+1,len(f_sentence)+1):        
             key = (i,j)
@@ -37,12 +36,18 @@ def decode(f_sentence,phrase_table,seen_words,return_trans=False):
             if not j in inward:
                 inward[j] = []
             inward[j].append(i)
-        
+
     # check for Out of Phrase-table phrases
+    length_ps = 0
+    for key in phrase_table:
+        items = phrase_table[key][0]
+        length_ps = len(items[2])
+        break
+
     for i in xrange(1,len(f_sentence)+1):
         if not i in inward:
             f_phrase = tuple( f_sentence[i-1:i] )
-            new_phrase_table[f_phrase] = [(small,f_phrase)]
+            new_phrase_table[f_phrase] = [(small,f_phrase,[0.0]*length_ps)]
             trans[(i-1,i)] = (small,f_phrase)
             inward[i] = [i-1,]
 
