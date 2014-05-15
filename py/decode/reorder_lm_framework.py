@@ -39,8 +39,9 @@ def decode_batch_config(config):
     referenceFn = config['reference']
     lm_path= config['lm_path']
     phrase_table_path = config['phrase_table']
+    output_path = config['output_path'] # the decoder's output
 
-    return decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit)
+    return decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit,output_file = output_path)
 
 
 def decode_batch_config_weight(config,feature_weights):
@@ -56,11 +57,12 @@ def decode_batch_config_weight(config,feature_weights):
     referenceFn = config['reference']
     lm_path= config['lm_path']
     phrase_table_path = config['phrase_table']
+    output_path = config['output_path'] # the decoder's output
 
-    return decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit)
+    return decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit, output_file = output_path)
 
 
-def decode_batch(feature_weights,input_path, temp_folder=None, lm_path = None, phrase_table_path = None,n_core = 1, beam_size = 100, top_k = 1, d_limit = 6):
+def decode_batch(feature_weights,input_path, temp_folder=None, output_file = None, lm_path = None, phrase_table_path = None,n_core = 1, beam_size = 100, top_k = 1, d_limit = 6):
     
     # weights
     num_feature = len(feature_weights)
@@ -134,10 +136,14 @@ def decode_batch(feature_weights,input_path, temp_folder=None, lm_path = None, p
         for p in processes:
             p.join()
 
+        f = open(output_file,'w')
+
         for i in xrange(n_core):
             group = d[i]
             if group != '':
-                print group,
+                f.write(group)
+        
+        f.close()
 
         sys.stderr.write('score:' + str(s) + '\n')
 

@@ -65,6 +65,7 @@ def write_config(config,fn):
         temp.append([type_str,key,value])
 
     temp = ['='.join(x) for x in temp]
+    temp = sorted(temp)
     temp_str = '\n'.join(temp)
     f.write(temp_str)
     f.close()

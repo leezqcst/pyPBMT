@@ -96,6 +96,7 @@ def combine_break_points(break_points, belongs, bleus, debug = False):
             current_belong[sid] = to_add_sbpid
 
         bleu_i = b.get_bleu()
+        #print b.precision, b.length, b.ref_length
         bls.append(bleu_i)
         if debug:
             print bleu_i, bps[i], current_belong
@@ -173,6 +174,10 @@ def search_break_points(partial_scores,feature_values,feature_id):
         if current == -1 or current == len(lines)-1:
             break
     
+    if len(break_points) == 0:
+        break_points.append(0)
+        belongs.append(lines[0][0])
+
     return break_points, belongs
     
 
@@ -190,10 +195,10 @@ class BP:
 # ==== Test ====
 
 def test_search_line():
-    #weights = [0.2,0.2,0.2,0.2,0.1,0.1,0.5,0.3]
-    weights =[-0.2602263480656042, -1.5631196861061967, -0.22872336139641586, -0.38355437101694989, 0.1, 0.1, 0.5, 0.3]
+    weights = [0.2,0.2,0.2,0.2,0.1,0.1,0.5,0.3]
+    #weights =[-0.2602263480656042, -1.5631196861061967, -0.22872336139641586, -0.3835543710169499, 3.6099745577140219, 0.1, 0.5, 0.3]
     pss,tss,bleus = cPickle.load(open('/Users/xingshi/Workspace/misc/pyPBMT/var/v1/ptbs.pickle'))
-    i = 4
+    i = 5
     new_weights, best_bleu_score = search_line(pss,bleus,weights,i)
     print new_weights
     print best_bleu_score
@@ -204,10 +209,10 @@ def test_search_break_points():
     ps = pss[0]
     ps = np.array(ps)
     feature_values = np.array([[0.2,0.2,0.2,0.2,0.1,0.1,0.5,0.3]])
-    bps,bls = search_break_points(ps,feature_values,0)
+    bps,bls = search_break_points(ps,feature_values,5)
     print bps
     print bls
 
 if __name__ == '__main__':
     test_search_line()
-    #test_search_break_points()
+    test_search_break_points()

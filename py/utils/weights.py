@@ -49,7 +49,7 @@ def weight_to_config(weights,config):
             i+=1
 
     if 'wpp' in config:
-        config['wp'] = weights[i]
+        config['wpp'] = weights[i]
         i+=1        
 
     if 'wwp' in config:

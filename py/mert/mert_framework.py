@@ -7,7 +7,7 @@ import logging
 import cPickle
 import os,sys
 from datetime import datetime
-
+from random import random
 
 def main():
     # python mert_framework mert.config
@@ -45,10 +45,7 @@ def mert(config,config_out,debug = True):
         # generate k-best 
         pss,tss = decode_batch_config_weight(config,current_weights)
 
-        #pss, tss = cPickle.load(open('/Users/xingshi/Workspace/misc/pyPBMT/var/v1/pts.pickle'))
         # merge k-best
-        #cPickle.dump((pss,tss),open('/Users/xingshi/Workspace/misc/pyPBMT/var/v1/pts.{}.pickle'.format(round_id),'w'))
-
         n_new_add = merge_pss_tss(current_pss, current_tss, sentence_dict, current_bleus, refs, pss, tss)
         
         logging.info('New_add: {}'.format(n_new_add))
@@ -62,7 +59,7 @@ def mert(config,config_out,debug = True):
             best_weights = new_weights
 
         if debug:
-            logging.info('{} {}'.format(best_bleu, best_weights))
+            logging.info('{} {}'.format(new_bleu, new_weights))
 
         for i in xrange(19):
             rand_weights = get_random_weights(current_weights)
@@ -84,8 +81,8 @@ def mert(config,config_out,debug = True):
 
         current_weights = best_weights
 
-        # if best_bleu - old_bleu < bleu_thres:
-        #     break
+        if best_bleu - old_bleu < bleu_thres:
+             break
 
     # write the new weights to config
     config = weight_to_config(best_weights,config)
@@ -121,19 +118,29 @@ def merge_pss_tss(total_pss,total_tss,sentence_dict,total_bleus, refs, new_pss,n
             ps = pss[j]
             key = tuple(ts)
             if not key in d:
-                d[key] = 1
+
                 n_new_add += 1
                 t_pss.append(ps)
                 t_tss.append(ts)
+                d[key] = len(t_pss)-1
                 b = Bleu()
                 ts_flat = []
                 for e_phrase in ts:
                     ts_flat += list(e_phrase)
                 b.parse_sentence(ts_flat,ref)
                 t_bleus.append(b)
+            else:
+                old_j = d[key]
+                t_pss[old_j] = ps
     return n_new_add
 
-
+def rand_array(n,ept):
+    temp = range(n)
+    temp = [x for x in temp if not x in ept]
+    temp = [(random(),x) for x in temp]
+    temp = sorted(temp)
+    temp = [x[1] for x in temp]
+    return temp
 
 def optimize(pps, bleus, start_feature_weights):
     '''optimize from start_feature_weights
@@ -148,9 +155,12 @@ def optimize(pps, bleus, start_feature_weights):
     old_bleu = 0
     new_bleu = 0
     threshold = 0.1
+    ept = set()
+#    ept.add(4)
+#   ept.add(5)
     while True:
         old_bleu = new_bleu
-        for i in xrange(num_feature):
+        for i in rand_array(num_feature,ept):
             # optimize ith weights
             current_weights, new_bleu = search_line(pps, bleus, current_weights,i)
         if abs(new_bleu - old_bleu) < threshold:

@@ -100,8 +100,8 @@ def main():
     # python bleu predict.txt ref.txt
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
-    fn = sys.argv[1]
-    reffn = sys.argv[2]
+    reffn = sys.argv[1]
+    fn = sys.argv[2]
     f = open(fn)
     reff = open(reffn)
     
