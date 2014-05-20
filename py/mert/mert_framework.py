@@ -1,5 +1,5 @@
-from utils.utils import get_config, write_config
-from utils.weights import Weight, get_random_weights,weight_to_config,normalize_weights
+import configparser
+from utils.weights import *
 from .bleu import Bleu
 from .line_search import search_line 
 from decode.reorder_lm_framework import decode_batch_config_weight
@@ -13,10 +13,10 @@ def main():
     # python mert_framework mert.config
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
     config_fn = sys.argv[1]
-    config = get_config(config_fn)
+    config = configparser.ConfigParser()
+    config._interpolation = configparser.ExtendedInterpolation()
+    config.read(config_fn)
     mert(config,config_fn+'.mert')
-
-
 
 
 def mert(config,config_out,debug = True):
@@ -86,7 +86,7 @@ def mert(config,config_out,debug = True):
 
     # write the new weights to config
     config = weight_to_config(best_weights,config)
-    write_config(config,config_out)
+    config.write(open(config_out,'w'))
 
 
 def merge_pss_tss(total_pss,total_tss,sentence_dict,total_bleus, refs, new_pss,new_tss):
@@ -171,7 +171,7 @@ def optimize(pps, bleus, start_feature_weights):
     return current_weights,new_bleu
 
 def get_reference_config(config):
-    fn = config['reference']
+    fn = config.get('path','reference')
     f = open(fn)
     refs = []
     for line in f:

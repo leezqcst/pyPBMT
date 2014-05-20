@@ -9,19 +9,21 @@ class Weight:
 
     def parse(self, config):
         for name in ['w0','w1','w2','w3']:
-            if name in config:
-                self.phrase_weights.append(config[name])
-        if 'wwp' in config:
-            self.word_penalty = config['wwp']
+            if config.has_option('weights',name):
+                self.phrase_weights.append(config.getfloat('weights',name))
 
-        if 'wpp' in config:
-            self.phrase_penalty = config['wpp']
+        if config.has_option('weights','wpp'):
+            self.phrase_penalty = config.getfloat('weights','wpp')
 
-        if 'wlm' in config:
-            self.lm_weight = config['wlm']
+        if config.has_option('weights','wwp'):
+            self.word_penalty = config.getfloat('weights','wwp')
 
-        if 'wd' in config:
-            self.d_weight = config['wd']
+        if config.has_option('weights','wlm'):
+            self.lm_weight = config.getfloat('weights','wlm')
+
+        if config.has_option('weights','wd'):
+            self.d_weight = config.getfloat('weights','wd')
+
 
     def get_weights(self):
         # standard order: ['w0','w1','w2','w3','wpp','wwp','wlm','wd']
@@ -36,34 +38,34 @@ def get_random_weights(weights):
     # based on weights, random in +- 1
     temp = []
     for weight in weights:
-        t = weight + (random()-0.5)*2
+        t = weight + (random()-0.5)*6
         temp.append(t)
     return temp
     
         
 def weight_to_config(weights,config):
     i = 0
+
     for name in ['w0','w1','w2','w3']:
-        if name in config:
-            config[name] = weights[i]
-            i+=1
+        if config.has_option('weights',name):
+            config.set('weights',name,str(weights[i]))
+            i += 1
 
-    if 'wpp' in config:
-        config['wpp'] = weights[i]
-        i+=1        
-
-    if 'wwp' in config:
-        config['wwp'] = weights[i]
-        i+=1
-
+    if config.has_option('weights','wpp'):
+        config.set('weights','wpp',str(weights[i]))
+        i += 1
         
-    if 'wlm' in config:
-        config['wlm'] = weights[i]
-        i+=1
+    if config.has_option('weights','wwp'):
+        config.set('weights','wwp',str(weights[i]))
+        i += 1
         
-    if 'wd' in config:
-        config['wd'] = weights[i]
-        i+=1
+    if config.has_option('weights','wlm'):
+        config.set('weights','wlm',str(weights[i]))
+        i += 1
+        
+    if config.has_option('weights','wd'):
+        config.set('weights','wd',str(weights[i]))
+        i += 1
 
     return config
 

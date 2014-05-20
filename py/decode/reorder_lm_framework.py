@@ -4,60 +4,57 @@ from . import multip
 from . import monotone
 from . import lm
 from .reorder_lm import decode, decode_k, stderr
-from utils.utils import get_config
+import configparser
 from multiprocessing import Queue, Process
 import logging
 import cPickle
 from datetime import datetime
 import sys,os
-
-
+from utils.utils import repr_pss_tss
+from utils.weights import *
 
 def main():
-    # reoder_lm.py decode.config
+    # reorder_lm.py decode.config
+
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
     config_fn = sys.argv[1]
-    config = get_config(config_fn)
-    decode_batch_config(config)
+    config = configparser.ConfigParser()
+    config._interpolation = configparser.ExtendedInterpolation()
+    config.read(config_fn)
+
+    weight = Weight()
+    weight.parse(config)
+    feature_weights = weight.get_weights()
 
     
-def decode_batch_config(config):
-    # weights
-    feature_weights = []
-    for name in ['w0','w1','w2','w3','wpp','wwp','wlm','wd']:
-        feature_weights.append(config[name])
+    # decode
+    r = decode_batch_config_weight(config, feature_weights)
 
-    # decode.config
-    nthread = config['nthread']
-    beam_size = config['beam_size']
-    top_k = config['top_k']
-    d_limit = config['d_limit']
-
-    # file paths
-    temp_folder = config['temp_folder']
-    inputFn = config['input']
-    referenceFn = config['reference']
-    lm_path= config['lm_path']
-    phrase_table_path = config['phrase_table']
-    output_path = config['output_path'] # the decoder's output
-
-    return decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit,output_file = output_path)
-
+    # print results
+    if len(r) == 2:
+        pss, tss = r
+        k_best_path = config.get('path','k_best_path')
+        f = open(k_best_path,'w')
+        s = repr_pss_tss(pss,tss,feature_weights)
+        f.write(s)
+        f.close()
+        
 
 def decode_batch_config_weight(config,feature_weights):
     # decode.config
-    nthread = config['nthread']
-    beam_size = config['beam_size']
-    top_k = config['top_k']
-    d_limit = config['d_limit']
+    nthread = config.getint('decoding','nthread')
+    beam_size = config.getint('decoding','beam_size')
+    top_k = config.getint('decoding','top_k')
+    d_limit = config.getint('decoding','d_limit')
 
     # file paths
-    temp_folder = config['temp_folder']
-    inputFn = config['input']
-    referenceFn = config['reference']
-    lm_path= config['lm_path']
-    phrase_table_path = config['phrase_table']
-    output_path = config['output_path'] # the decoder's output
+    temp_folder = config.get('path','temp_folder')
+    inputFn = config.get('path','input')
+    referenceFn = config.get('path','reference')
+    lm_path= config.get('path','lm_path')
+    phrase_table_path = config.get('path','phrase_table')
+    output_path = config.get('path','single_best_path')
+    k_best_path = config.get('path','k_best_path')
 
     return decode_batch(feature_weights, inputFn, temp_folder = temp_folder, lm_path = lm_path, phrase_table_path = phrase_table_path , n_core = nthread, beam_size = beam_size, top_k = top_k, d_limit = d_limit, output_file = output_path)
 
