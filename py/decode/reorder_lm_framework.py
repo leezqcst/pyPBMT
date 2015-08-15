@@ -31,7 +31,7 @@ def main():
     r = decode_batch_config_weight(config, feature_weights)
 
     # print results
-    if len(r) == 2:
+    if r and len(r) == 2:
         pss, tss = r
         k_best_path = config.get('path','k_best_path')
         f = open(k_best_path,'w')

@@ -126,8 +126,9 @@ def lmize(lm_model, lm_weight, phrase_table):
 
 
 def test():
-    sentence = 'this is good sx'
-    model = getLM()
+    sentence = 'after decades'
+    path = '/Users/xingshi/Workspace/misc/pyPBMT/data/europarl.en.2gram.arpa'
+    model = getLM(path)
     print lm_score(model,sentence.split(),False,False)
 
 if __name__ == '__main__':
